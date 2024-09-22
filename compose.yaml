@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - 'POSTGRES_DB=db1'
+      - 'POSTGRES_PASSWORD=11gramgim'
+      - 'POSTGRES_USER=postgres'
+    ports:
+      - "5432:5432"
+  postgres2:
+    image: 'postgres:latest'
+    environment:
+      - 'POSTGRES_DB=db2'
+      - 'POSTGRES_PASSWORD=11gramgim'
+      - 'POSTGRES_USER=postgres'
+    ports:
+      - "5433:5432"
+  lab4:
+    build: .
+    restart: always
+    volumes:
+      - .:/app
+    ports:
+      - "8177:8177"
+  lab4micro:
+    build: ./RatingService
+    restart: always
+    volumes:
+      - ./RatingService:/app
+    ports:
+      - "8080:8080"
+
+  localRabbitMQ:
+    hostname: localRabbitMQ
+    image: rabbitmq:management
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "1883:1883"
