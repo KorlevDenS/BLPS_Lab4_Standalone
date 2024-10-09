@@ -36,11 +36,12 @@ public class Chapter {
     private Client creator;
 
     @CreatedDate
+    @JsonIgnore //TODO
     @Column(name = "created")
     private LocalDate created;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "chapter")
+    @OneToMany(mappedBy = "chapter", fetch = FetchType.EAGER)
     private Set<Topic> topics = new LinkedHashSet<>();
 
 }

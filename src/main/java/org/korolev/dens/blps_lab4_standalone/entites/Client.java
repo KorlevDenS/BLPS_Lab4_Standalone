@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Past;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
-import org.korolev.dens.blps_lab4_standalone.exceptions.ClientPassword;
+import org.korolev.dens.blps_lab4_standalone.security.ClientPassword;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -48,10 +48,12 @@ public class Client {
     @Column(name = "sex", length = 3)
     private String sex;
 
+    @JsonIgnore //TODO
     @CreatedDate
     @Column(name = "registered", nullable = false)
     private LocalDate registered;
 
+    @JsonIgnore //TODO
     @Past(message = "День рождения должен быть в прошлом")
     @Column(name = "birthday", nullable = false)
     private LocalDate birthday;
