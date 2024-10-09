@@ -1,6 +1,6 @@
 package org.korolev.dens.ratingservice.services;
 
-import org.korolev.dens.ratingservice.RatingComputeException;
+import org.korolev.dens.ratingservice.exceptions.RatingComputeException;
 import org.korolev.dens.ratingservice.entities.Client;
 import org.korolev.dens.ratingservice.entities.Rating;
 import org.korolev.dens.ratingservice.entities.Topic;

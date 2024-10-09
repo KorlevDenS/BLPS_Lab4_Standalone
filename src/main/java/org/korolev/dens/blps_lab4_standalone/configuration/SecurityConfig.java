@@ -3,10 +3,10 @@ package org.korolev.dens.blps_lab4_standalone.configuration;
 import org.korolev.dens.blps_lab4_standalone.filters.ExceptionHandlerFilter;
 import org.korolev.dens.blps_lab4_standalone.filters.JwtAuthFilter;
 import org.korolev.dens.blps_lab4_standalone.repositories.ClientRepository;
+import org.korolev.dens.blps_lab4_standalone.repositories.NotificationRepository;
 import org.korolev.dens.blps_lab4_standalone.repositories.PermissionRepository;
 import org.korolev.dens.blps_lab4_standalone.repositories.RoleRepository;
-import org.korolev.dens.blps_lab4_standalone.security.ClientService;
-import org.korolev.dens.blps_lab4_standalone.services.JwtTokenService;
+import org.korolev.dens.blps_lab4_standalone.services.ClientService;
 import org.korolev.dens.blps_lab4_standalone.services.PasswordService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,27 +39,27 @@ public class SecurityConfig {
 
     private final PasswordService passwordService;
     private final ClientRepository clientRepository;
-    private final JwtTokenService jwtTokenService;
     private final PermissionRepository permissionRepository;
     private final RoleRepository roleRepository;
+    private final NotificationRepository notificationRepository;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter, ExceptionHandlerFilter handlerFilter,
                           ClientRepository clientRepository, PermissionRepository permissionRepository,
                           RoleRepository roleRepository,
-                          PasswordService passwordService, JwtTokenService jwtTokenService) {
+                          PasswordService passwordService, NotificationRepository notificationRepository) {
         this.permissionRepository = permissionRepository;
-        this.jwtTokenService = jwtTokenService;
         this.jwtAuthFilter = jwtAuthFilter;
         this.passwordService = passwordService;
         this.clientRepository = clientRepository;
         this.roleRepository = roleRepository;
         this.handlerFilter = handlerFilter;
+        this.notificationRepository = notificationRepository;
     }
 
     @Bean
     public UserDetailsService userDetailsService() {
         return new ClientService(this.passwordService, this.clientRepository,
-                this.jwtTokenService, this.permissionRepository, this.roleRepository);
+                this.permissionRepository, this.roleRepository, this.notificationRepository);
     }
 
     @Bean

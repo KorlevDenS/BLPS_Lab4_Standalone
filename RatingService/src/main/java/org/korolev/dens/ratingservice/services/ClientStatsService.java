@@ -1,10 +1,12 @@
 package org.korolev.dens.ratingservice.services;
 
 import org.korolev.dens.ratingservice.entities.Client;
+import org.korolev.dens.ratingservice.exceptions.RateObjectNotFoundException;
+import org.korolev.dens.ratingservice.exceptions.RatingLogicException;
+import org.korolev.dens.ratingservice.exceptions.ServiceErrorException;
 import org.korolev.dens.ratingservice.repositories.ClientRepository;
 import org.korolev.dens.ratingservice.responces.ClientPlaces;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -18,28 +20,28 @@ public class ClientStatsService {
         this.clientRepository = clientRepository;
     }
 
-    public ResponseEntity<?> findClientStats(String login) {
+    public Client findClientStats(String login) throws ServiceErrorException, RateObjectNotFoundException {
         Optional<Client> client;
         try {
             client = clientRepository.findById(login);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         if (client.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No stats for client " + login);
+            throw new RateObjectNotFoundException("No stats for client " + login);
         }
-        return ResponseEntity.ok().body(client.get());
+        return client.get();
     }
 
-    public ResponseEntity<?> findClientPlaces(String login) {
+    public ClientPlaces findClientPlaces(String login) throws ServiceErrorException, RateObjectNotFoundException {
         List<Client> allClients;
         try {
             allClients = clientRepository.findAll();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         if (!allClients.stream().map(Client::getLogin).toList().contains(login)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No stats for client " + login);
+            throw new RateObjectNotFoundException("No stats for client " + login);
         }
         ClientPlaces clientPlaces = new ClientPlaces();
         List<Client> sortedByFame = new ArrayList<>(allClients);
@@ -56,38 +58,38 @@ public class ClientStatsService {
                 clientPlaces.setPlaceByActivity(i + 1);
             }
         }
-        return ResponseEntity.ok().body(clientPlaces);
+        return clientPlaces;
     }
 
-    public ResponseEntity<?> findClientsFameTop(Integer n) {
+    public List<Client> findClientsFameTop(Integer n) throws ServiceErrorException, RatingLogicException {
         List<Client> allClients;
         try {
             allClients = clientRepository.findAll();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         allClients.sort(Comparator.comparingDouble(Client::getRating).reversed());
         return formTopN(n, allClients);
     }
 
-    public ResponseEntity<?> findClientsActivityTop(Integer n) {
+    public List<Client> findClientsActivityTop(Integer n) throws RatingLogicException, ServiceErrorException {
         List<Client> allClients;
         try {
             allClients = clientRepository.findAll();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         allClients.sort(Comparator.comparingInt(Client::getActivity).reversed());
         return formTopN(n, allClients);
     }
 
-    private ResponseEntity<?> formTopN(Integer n, List<Client> clients) {
+    private List<Client> formTopN(Integer n, List<Client> clients) throws RatingLogicException {
         if (n == 0) {
-            return ResponseEntity.ok().body(clients);
+            return clients;
         } if (n > 0) {
-            return ResponseEntity.ok().body(clients.stream().limit(n).toList());
+            return clients.stream().limit(n).toList();
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("N parameter is negative");
+            throw new RatingLogicException("N parameter is negative", HttpStatus.BAD_REQUEST);
         }
     }
 

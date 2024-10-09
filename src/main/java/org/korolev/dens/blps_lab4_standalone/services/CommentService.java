@@ -1,10 +1,12 @@
 package org.korolev.dens.blps_lab4_standalone.services;
 
 import org.korolev.dens.blps_lab4_standalone.entites.*;
+import org.korolev.dens.blps_lab4_standalone.exceptions.*;
 import org.korolev.dens.blps_lab4_standalone.repositories.*;
 import org.korolev.dens.blps_lab4_standalone.requests.StatsMessage;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -26,7 +28,8 @@ public class CommentService {
 
     public CommentService(PlatformTransactionManager platformTransactionManager, CommentRepository commentRepository,
                           TopicRepository topicRepository, ClientRepository clientRepository,
-                          SubscriptionRepository subscriptionRepository, NotificationRepository notificationRepository, MessageProducer messageProducer) {
+                          SubscriptionRepository subscriptionRepository, NotificationRepository notificationRepository,
+                          MessageProducer messageProducer) {
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
         this.subscriptionRepository = subscriptionRepository;
         this.notificationRepository = notificationRepository;
@@ -37,25 +40,49 @@ public class CommentService {
         this.messageProducer = messageProducer;
     }
 
+    public List<Comment> findAllByTopic(Integer topicId) throws ForumObjectNotFoundException {
+        if (topicRepository.findById(topicId).isEmpty()) {
+            throw new ForumObjectNotFoundException("Topic with id " + topicId + " not found");
+        }
+        return commentRepository.getAllByTopic(topicId);
+    }
 
-    public ResponseEntity<?> comment(String login, Integer topicId, Integer quoteId, Comment comment) {
-        return transactionTemplate.execute(status -> {
+    @PreAuthorize("hasRole('MODER')")
+    public void delete(Integer commentId) throws ForumObjectNotFoundException {
+        Optional<Comment> optionalComment = commentRepository.findById(commentId);
+        if (optionalComment.isEmpty()) {
+            throw new ForumObjectNotFoundException("Comment with id " + commentId + " not found");
+        }
+        commentRepository.deleteById(commentId);
+    }
+
+
+    @PreAuthorize("hasRole('USER')")
+    public Comment comment(Integer topicId, Integer quoteId, Comment comment) throws ForumException {
+        String login = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getUsername();
+        TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
+        Comment c = transactionTemplate.execute(status -> {
             Comment addedComment;
             Client topicOwner;
             try {
                 if (quoteId > 0) {
                     Optional<Comment> optionalComment = commentRepository.findById(quoteId);
                     if (optionalComment.isEmpty()) {
-                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Комментарий для цитирования не существует");
+                        keeper.setEx(new ForumObjectNotFoundException(
+                                "Comment for quoting " + quoteId + " does not exist"));
+                        return null;
                     }
                     comment.setQuote(optionalComment.get());
                 }
                 Optional<Topic> optionalTopic = topicRepository.findById(topicId);
                 Optional<Client> optionalClient = clientRepository.findByLogin(login);
                 if (optionalClient.isEmpty()) {
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Пользователь не авторизован");
+                    keeper.setEx(new ForbiddenActionException("Illegal access to resource: no such client in database"));
+                    return null;
                 } else if (optionalTopic.isEmpty()) {
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Тема не существует");
+                    keeper.setEx(new ForumObjectNotFoundException("Topic " + topicId + " does not exist"));
+                    return null;
                 }
                 topicOwner = optionalTopic.get().getOwner();
                 comment.setCommentator(optionalClient.get());
@@ -64,8 +91,8 @@ public class CommentService {
                     addedComment = commentRepository.save(comment);
                 } catch (Exception e) {
                     status.setRollbackOnly();
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body("Comment was not saved to data base");
+                    keeper.setEx(new ForumException("Comment was not saved to data base"));
+                    return null;
                 }
                 List<Subscription> subscriptions = subscriptionRepository.findAllByTopic(optionalTopic.get());
                 for (Subscription subscription : subscriptions) {
@@ -79,17 +106,20 @@ public class CommentService {
                         notificationRepository.save(notification);
                     } catch (Exception e) {
                         status.setRollbackOnly();
-                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                .body("Could not send notification to subscribers");
+                        keeper.setEx(new ForumException("Could not send notification to subscribers"));
+                        return null;
                     }
                 }
             } catch (Exception e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Comment was not added");
+                keeper.setEx(new ForumException("Comment was not added"));
+                return null;
             }
             messageProducer.sendMessage(new StatsMessage(topicId, login, "comment", topicOwner.getLogin()));
-            return ResponseEntity.ok(addedComment);
+            return addedComment;
         });
+        keeper.throwIfSet();
+        return c;
     }
 
 }

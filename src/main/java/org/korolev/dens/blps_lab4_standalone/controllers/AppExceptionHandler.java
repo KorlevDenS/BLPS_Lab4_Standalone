@@ -1,6 +1,7 @@
-package org.korolev.dens.blps_lab4_standalone.exceptions;
+package org.korolev.dens.blps_lab4_standalone.controllers;
 
 import org.hibernate.exception.ConstraintViolationException;
+import org.korolev.dens.blps_lab4_standalone.exceptions.ForumException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 public class AppExceptionHandler {
+
+    @ExceptionHandler(ForumException.class)
+    public ResponseEntity<?> handleForumException(ForumException e) {
+        return new ResponseEntity<>(e.getMessage(), e.getPossibleStatus());
+    }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<?> handleAuthenticationException(AuthenticationException ex) {

@@ -1,10 +1,12 @@
 package org.korolev.dens.ratingservice.services;
 
 import org.korolev.dens.ratingservice.entities.Topic;
+import org.korolev.dens.ratingservice.exceptions.RateObjectNotFoundException;
+import org.korolev.dens.ratingservice.exceptions.RatingLogicException;
+import org.korolev.dens.ratingservice.exceptions.ServiceErrorException;
 import org.korolev.dens.ratingservice.repositories.TopicRepository;
 import org.korolev.dens.ratingservice.responces.TopicPlaces;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -18,62 +20,62 @@ public class TopicStatsService {
         this.topicRepository = topicRepository;
     }
 
-    public ResponseEntity<?> findTopicStats(Integer topicId) {
+    public Topic findTopicStats(Integer topicId) throws ServiceErrorException, RateObjectNotFoundException {
         Optional<Topic> topic;
         try {
             topic = topicRepository.findById(topicId);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         if (topic.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No stats for topic " + topicId);
+            throw new RateObjectNotFoundException("No stats for topic " + topicId);
         }
-        return ResponseEntity.ok().body(topic.get());
+        return topic.get();
     }
 
-    public ResponseEntity<?> findTopicsViewsTop(Integer n) {
+    public List<Topic> findTopicsViewsTop(Integer n) throws ServiceErrorException, RatingLogicException {
         List<Topic> allTopics;
         try {
             allTopics = topicRepository.findAll();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         allTopics.sort(Comparator.comparingInt(Topic::getViews).reversed());
         if (n == 0) {
-            return ResponseEntity.ok().body(allTopics);
+            return allTopics;
         } else if (n > 0) {
-            return ResponseEntity.ok().body(allTopics.stream().limit(n).toList());
+            return allTopics.stream().limit(n).toList();
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("N parameter is negative");
+            throw new RatingLogicException("N parameter is negative", HttpStatus.BAD_REQUEST);
         }
     }
 
-    public ResponseEntity<?> findTopicsFameTop(Integer n) {
+    public List<Topic> findTopicsFameTop(Integer n) throws ServiceErrorException, RatingLogicException {
         List<Topic> allTopics;
         try {
             allTopics = topicRepository.findAll();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         allTopics.sort(Comparator.comparingDouble(Topic::getFame).reversed());
         if (n == 0) {
-            return ResponseEntity.ok().body(allTopics);
+            return allTopics;
         } else if (n > 0) {
-            return ResponseEntity.ok().body(allTopics.stream().limit(n).toList());
+            return allTopics.stream().limit(n).toList();
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("N parameter is negative");
+            throw new RatingLogicException("N parameter is negative", HttpStatus.BAD_REQUEST);
         }
     }
 
-    public ResponseEntity<?> findTopicPlaces(Integer topicId) {
+    public TopicPlaces findTopicPlaces(Integer topicId) throws ServiceErrorException, RateObjectNotFoundException {
         List<Topic> allTopics;
         try {
             allTopics = topicRepository.findAll();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Database error");
+            throw new ServiceErrorException("Database error");
         }
         if (!allTopics.stream().map(Topic::getId).toList().contains(topicId)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No stats for topic " + topicId);
+            throw new RateObjectNotFoundException("No stats for topic " + topicId);
         }
         TopicPlaces topicPlaces = new TopicPlaces();
         List<Topic> sortedByViews = new ArrayList<>(allTopics);
@@ -90,7 +92,7 @@ public class TopicStatsService {
                 topicPlaces.setPlaceByFame(i + 1);
             }
         }
-        return ResponseEntity.ok().body(topicPlaces);
+        return topicPlaces;
     }
 
 }

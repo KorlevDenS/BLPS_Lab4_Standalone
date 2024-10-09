@@ -1,4 +1,4 @@
-package org.korolev.dens.blps_lab4_standalone.exceptions;
+package org.korolev.dens.blps_lab4_standalone.security;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;

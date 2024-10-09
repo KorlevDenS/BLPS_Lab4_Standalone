@@ -2,20 +2,19 @@ package org.korolev.dens.blps_lab4_standalone.services;
 
 import jakarta.annotation.Nullable;
 import org.korolev.dens.blps_lab4_standalone.entites.*;
-import org.korolev.dens.blps_lab4_standalone.exceptions.ImageAccessException;
-import org.korolev.dens.blps_lab4_standalone.exceptions.ImagesBackupException;
+import org.korolev.dens.blps_lab4_standalone.exceptions.*;
 import org.korolev.dens.blps_lab4_standalone.repositories.*;
 import org.korolev.dens.blps_lab4_standalone.requests.StatsMessage;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -53,34 +52,30 @@ public class TopicService {
         this.messageProducer = messageProducer;
     }
 
-    public ResponseEntity<?> findTopicById(Integer topicId, UserDetails userDetails) {
+    public List<Topic> findAllByChapter(Integer chapterId) throws ForumObjectNotFoundException {
+        if (chapterRepository.findById(chapterId).isEmpty()) {
+            throw new ForumObjectNotFoundException("No chapter with id " + chapterId);
+        }
+        return topicRepository.getAllByChapter(chapterId);
+    }
+
+    public Topic findTopicById(Integer topicId) throws ForumObjectNotFoundException {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Optional<Topic> optionalTopic = topicRepository.findById(topicId);
         if (optionalTopic.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No topic with id " + topicId);
+            throw new ForumObjectNotFoundException("No topic with id " + topicId);
         }
         if (userDetails == null) {
             messageProducer.sendMessage(new StatsMessage(optionalTopic.get().getId(), "", "watch",
                     optionalTopic.get().getOwner().getLogin()));
-            System.out.println("WATCH WITHOUT PRODUCER");
         } else {
             messageProducer.sendMessage(new StatsMessage(optionalTopic.get().getId(), userDetails.getUsername(),
                     "watch", optionalTopic.get().getOwner().getLogin()));
-            System.out.println("WATCH WITH PRODUCER");
         }
-        return ResponseEntity.ok(optionalTopic.get());
+        return optionalTopic.get();
     }
 
-    public ResponseEntity<?> findImageByURL(String URL) {
-        Resource resource;
-        try {
-            resource = getImageFromDisk(URL);
-        } catch (ImageAccessException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No image with URL " + URL);
-        }
-        return ResponseEntity.ok(resource);
-    }
-
-    private Resource getImageFromDisk(String imageUrl) throws ImageAccessException {
+    public Resource getImageFromDisk(String imageUrl) throws ImageAccessException {
         try {
             String storage = System.getenv("PHOTO_STORAGE");
             Path filepath = Paths.get(storage).resolve(imageUrl);
@@ -88,22 +83,26 @@ public class TopicService {
             if (resource.exists()) {
                 return resource;
             } else {
-                throw new ImageAccessException("Image does not exist");
+                throw new ImageAccessException("Image does not exist", HttpStatus.NOT_FOUND);
             }
         } catch (Exception e) {
-            throw new ImageAccessException("Cased by " + e.getClass() + ": " + e.getMessage());
+            throw new ImageAccessException("Cased by " + e.getClass() + ": " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    public ResponseEntity<?> delete(Integer topicId) {
-        return transactionTemplate.execute((TransactionCallback<ResponseEntity<?>>) status -> {
+    @PreAuthorize("hasRole('MODER')")
+    public void delete(Integer topicId) throws ForumException {
+        TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
+        transactionTemplate.execute(status -> {
             Pair<Path, Map<Path, Path>> backup = null;
             Topic topic;
             try {
                 topic = topicRepository.findById(topicId)
-                        .orElseThrow(() -> new NoSuchElementException("Topic not found"));
+                        .orElseThrow(() -> new NoSuchElementException("Topic " + topicId + " not found"));
             } catch (NoSuchElementException e) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+                keeper.setEx(new ForumObjectNotFoundException(e.getMessage()));
+                return null;
             }
             Client topicOwner = topic.getOwner();
             try {
@@ -111,7 +110,8 @@ public class TopicService {
                     backup = makeImgBackup(topic);
                 } catch (ImagesBackupException e) {
                     status.setRollbackOnly();
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+                    keeper.setEx(e);
+                    return null;
                 }
                 try {
                     for (Image image : topic.getImages()) {
@@ -120,14 +120,16 @@ public class TopicService {
                 } catch (Exception e) {
                     status.setRollbackOnly();
                     deleteReservedFiles(backup.getFirst());
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Could not delete images from db");
+                    keeper.setEx(new ForumException("Could not delete images from db"));
+                    return null;
                 }
                 try {
                     topicRepository.deleteById(topicId);
                 } catch (Exception e) {
                     status.setRollbackOnly();
                     deleteReservedFiles(backup.getFirst());
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Could not delete topic from db");
+                    keeper.setEx(new ForumException("Could not delete topic from db"));
+                    return null;
                 }
                 for (Image image : topic.getImages()) {
                     String imgLink = image.getLink();
@@ -136,21 +138,22 @@ public class TopicService {
                         restoreDeletedFiles(backup.getSecond());
                         status.setRollbackOnly();
                         deleteReservedFiles(backup.getFirst());
-                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                .body("Could not delete image from disk");
+                        keeper.setEx(new ForumException("Could not delete image from disk"));
+                        return null;
                     }
                 }
             } catch (Exception e) {
                 status.setRollbackOnly();
                 if (backup != null) deleteReservedFiles(backup.getFirst());
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Topic with id " + topicId + " was not deleted");
+                keeper.setEx(new ForumException("Topic with id " + topicId + " was not deleted"));
+                return null;
             }
             deleteReservedFiles(backup.getFirst());
             messageProducer.sendMessage(new StatsMessage(topicId, "", "delete",
                     topicOwner.getLogin()));
-            return ResponseEntity.status(HttpStatus.OK).body("Topic with id " + topicId + " deleted");
+            return null;
         });
+        keeper.throwIfSet();
     }
 
     private void restoreDeletedFiles(Map<Path, Path> imgMap) {
@@ -213,21 +216,27 @@ public class TopicService {
         }
     }
 
-    public ResponseEntity<?> add(Topic topic, Integer chapterId, String login, @Nullable MultipartFile img1,
-                                 @Nullable MultipartFile img2, @Nullable MultipartFile img3) {
+    @PreAuthorize("hasRole('USER')")
+    public Topic add(Topic topic, Integer chapterId, @Nullable MultipartFile img1,
+                                 @Nullable MultipartFile img2, @Nullable MultipartFile img3) throws ForumException {
+        String login = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getUsername();
         MultipartFile[] multipartFiles = {img1, img2, img3};
         if (!validateImgList(Arrays.asList(multipartFiles))) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Неверный формат файла. Допустимы png и jpg");
+            throw new ImageAccessException("Неверный формат файла. Допустимы png и jpg", HttpStatus.BAD_REQUEST);
         }
-        return transactionTemplate.execute(status -> {
+        TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
+        Topic t = transactionTemplate.execute(status -> {
             Topic addedTopic;
             try {
                 Optional<Chapter> optionalChapter = chapterRepository.findById(chapterId);
                 Optional<Client> optionalClient = clientRepository.findByLogin(login);
                 if (optionalClient.isEmpty()) {
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Пользователь не авторизован");
+                    keeper.setEx(new ForbiddenActionException("Illegal access to resource: no such client in database"));
+                    return null;
                 } else if (optionalChapter.isEmpty()) {
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No chapter with id " + chapterId);
+                    keeper.setEx(new ForumObjectNotFoundException("No chapter with id " + chapterId));
+                    return null;
                 }
                 topic.setOwner(optionalClient.get());
                 topic.setChapter(optionalChapter.get());
@@ -235,7 +244,8 @@ public class TopicService {
                     addedTopic = topicRepository.save(topic);
                 } catch (Exception e) {
                     status.setRollbackOnly();
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred when saving topic");
+                    keeper.setEx(new ForumException("Error occurred when saving topic"));
+                    return null;
                 }
                 List<String> imgLinks = new ArrayList<>();
                 try {
@@ -256,8 +266,9 @@ public class TopicService {
                         }
                     }
                     status.setRollbackOnly();
-                    return ResponseEntity.status(HttpStatus.CONFLICT)
-                            .body("Unable to save topic because we cannot upload the image");
+                    keeper.setEx(new ForumLogicException("Unable to save topic because we cannot upload the image",
+                            HttpStatus.CONFLICT));
+                    return null;
                 }
                 for (String imgLink : imgLinks) {
                     Image image = new Image();
@@ -268,18 +279,20 @@ public class TopicService {
                         imageRepository.save(image);
                     } catch (Exception e) {
                         status.setRollbackOnly();
-                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                .body("Error occurred when saving image");
+                        keeper.setEx(new ForumException("Error occurred when saving image"));
+                        return null;
                     }
                 }
             } catch (Exception e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Topic was not added");
+                keeper.setEx(new ForumException("Topic was not added"));
+                return null;
             }
             messageProducer.sendMessage(new StatsMessage(addedTopic.getId(), "", "add", login));
-            return ResponseEntity.ok(addedTopic);
+            return addedTopic;
         });
+        keeper.throwIfSet();
+        return t;
     }
 
     private Path uploadImage(MultipartFile img, int i, int id) throws IOException {
@@ -322,18 +335,22 @@ public class TopicService {
                 header[0] == (byte) 0xFF && header[1] == (byte) 0xD8;
     }
 
-    public ResponseEntity<?> subscribe(Integer topicId, String login) {
+    @PreAuthorize("hasRole('USER')")
+    public Subscription subscribe(Integer topicId) throws ForbiddenActionException, ForumObjectNotFoundException,
+            ForumLogicException {
+        String login = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getUsername();
         Optional<Client> optionalClient = clientRepository.findByLogin(login);
         Optional<Topic> optionalTopic = topicRepository.findById(topicId);
         if (optionalClient.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Пользователь не авторизован");
+            throw new ForbiddenActionException("Illegal access to resource: no such client in database");
         } else if (optionalTopic.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Тема для подписки не существует");
+            throw new ForumObjectNotFoundException("Topic " + topicId + " does not exist");
         }
         Optional<Subscription> optionalSubscription =
                 subscriptionRepository.findByClientAndTopic(optionalClient.get(), optionalTopic.get());
         if (optionalSubscription.isPresent()) {
-            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body("Подписка на эту тему уже оформлена");
+            throw new ForumLogicException("You have already subscribed for this topic", HttpStatus.ALREADY_REPORTED);
         } else {
             Subscription subscription = new Subscription();
             SubscriptionId subscriptionId = new SubscriptionId();
@@ -342,13 +359,16 @@ public class TopicService {
             subscription.setId(subscriptionId);
             subscription.setClient(optionalClient.get());
             subscription.setTopic(optionalTopic.get());
-            Subscription addedSubscription = subscriptionRepository.save(subscription);
-            return ResponseEntity.ok(addedSubscription);
+            return subscriptionRepository.save(subscription);
         }
     }
 
-    public ResponseEntity<?> unsubscribe(Integer topicId, String login) {
-        return transactionTemplate.execute((TransactionCallback<ResponseEntity<?>>) status -> {
+    @PreAuthorize("hasRole('USER')")
+    public void unsubscribe(Integer topicId) throws ForumException {
+        String login = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getUsername();
+        TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
+        transactionTemplate.execute(status -> {
             try {
                 Client client = clientRepository.findByLogin(login).orElseThrow(Exception::new);
                 Topic topic = topicRepository.findById(topicId)
@@ -358,24 +378,31 @@ public class TopicService {
                 subscriptionRepository.deleteByClientAndTopic(client, topic);
             } catch (NoSuchElementException e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+                keeper.setEx(new ForumObjectNotFoundException(e.getMessage()));
+                return null;
             } catch (Exception e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Не удалось отписаться");
+                keeper.setEx(new ForumException("Unsubscription failed"));
+                return null;
             }
-            return ResponseEntity.status(HttpStatus.OK).body("Подписка успешно удалена");
-
+            return null;
         });
+        keeper.throwIfSet();
     }
 
-    public ResponseEntity<?> update(Topic topic, String login) {
-        return transactionTemplate.execute((TransactionCallback<ResponseEntity<?>>) status -> {
+    @PreAuthorize("hasRole('USER')")
+    public Topic update(Topic topic) throws ForumException {
+        String login = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getUsername();
+        TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
+        Topic updated = transactionTemplate.execute(status -> {
+            Topic t;
             try {
-                Topic t = topicRepository.findById(topic.getId())
-                        .orElseThrow(() -> new NoSuchElementException("Topic not found"));
+                t = topicRepository.findById(topic.getId())
+                        .orElseThrow(() -> new NoSuchElementException("Topic " + topic.getId() + " not found"));
                 if (!(t.getOwner().getLogin().equals(login))) {
-                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body("Topic with id " + topic.getId() + " is not yours");
+                    keeper.setEx(new ForbiddenActionException("Topic with id " + topic.getId() + " is not yours"));
+                    return null;
                 }
                 if (!Objects.equals(t.getTitle(), topic.getTitle())) {
                     topicRepository.updateTitle(t.getId(), topic.getTitle(), login);
@@ -385,43 +412,64 @@ public class TopicService {
                 }
             } catch (NoSuchElementException e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+                keeper.setEx(new ForumObjectNotFoundException(e.getMessage()));
+                return null;
             } catch (Exception e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Update failed");
+                keeper.setEx(new ForumLogicException("Update failed", HttpStatus.CONFLICT));
+                return null;
             }
-            return ResponseEntity.status(HttpStatus.OK).body("Topic " + topic.getId() + " has been updated");
+            return t;
         });
+        keeper.throwIfSet();
+        return updated;
     }
 
-    public ResponseEntity<?> rate(Rating rating, Integer topicId, String login) {
-        return transactionTemplate.execute(status -> {
+    @PreAuthorize("hasRole('USER')")
+    public Rating rate(Rating rating, Integer topicId) throws ForumException {
+        String login = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getUsername();
+        TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
+        Rating r = transactionTemplate.execute(status -> {
             try {
                 Client client = clientRepository.findByLogin(login).orElseThrow(Exception::new);
                 Topic topic = topicRepository.findById(topicId)
-                        .orElseThrow(() -> new NoSuchElementException("Topic not found"));
+                        .orElseThrow(() -> new NoSuchElementException("Topic " + topicId + " not found"));
                 Optional<Rating> optionalRating = ratingRepository.findRatingByCreatorAndTopic(client, topic);
                 if (optionalRating.isPresent()) {
                     ratingRepository.updateRatingByClientAndTopic(login, rating.getRating(), topicId);
                     messageProducer.sendMessage(new StatsMessage(topicId, login, rating.getRating().toString(),
                             topic.getOwner().getLogin()));
-                    return ResponseEntity.status(HttpStatus.OK).body("Оценка успешно обновлена");
+                    return optionalRating.get();
                 } else {
                     rating.setCreator(client);
                     rating.setTopic(topic);
                     Rating addedRating = ratingRepository.save(rating);
                     messageProducer.sendMessage(new StatsMessage(topicId, login, rating.getRating().toString(),
                             topic.getOwner().getLogin()));
-                    return ResponseEntity.ok(addedRating);
+                    return addedRating;
                 }
             } catch (NoSuchElementException e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+                keeper.setEx(new ForumObjectNotFoundException(e.getMessage()));
+                return null;
             } catch (Exception e) {
                 status.setRollbackOnly();
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Не удалось оценить тему");
+                keeper.setEx(new ForumException("Rating topic failed"));
+                return null;
             }
         });
+        keeper.throwIfSet();
+        return r;
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    public List<Rating> findTopicRatings(Integer topicId) throws ForumObjectNotFoundException {
+        Optional<Topic> optionalTopic = topicRepository.findById(topicId);
+        if (optionalTopic.isEmpty()) {
+            throw new ForumObjectNotFoundException("Topic " + topicId + " does not exist");
+        }
+        return ratingRepository.findAllByTopic(optionalTopic.get());
     }
 
 }
