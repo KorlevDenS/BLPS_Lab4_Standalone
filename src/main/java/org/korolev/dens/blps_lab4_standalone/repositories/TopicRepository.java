@@ -13,6 +13,9 @@ public interface TopicRepository extends JpaRepository<Topic, Integer> {
     @Query(value = "select chapter.topics from Chapter chapter where chapter.id = :chapterId")
     List<Topic> getAllByChapter(@Param("chapterId") Integer chapterId);
 
+    @Query(value = "select t from Topic t where t.chapter.id = :chapterId and t.approval is null")
+    List<Topic> getAllApprovedByChapter(@Param("chapterId") Integer chapterId);
+
     @Modifying
     @Query(value = "update Topic topic set topic.title = :title where topic.id = :topicId and topic.owner.login = :login")
     void updateTitle(@Param("topicId") Integer topicId, @Param("title") String title, @Param("login") String login);

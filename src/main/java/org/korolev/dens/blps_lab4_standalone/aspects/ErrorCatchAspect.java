@@ -21,7 +21,8 @@ public class ErrorCatchAspect {
     public Object handleExceptions(ProceedingJoinPoint joinPoint, ExternalTask externalTask,
                                    ExternalTaskService externalTaskService) throws Throwable {
         try {
-            return joinPoint.proceed();
+            joinPoint.proceed();
+            return null;
         } catch (Exception e) {
             externalTaskService.handleBpmnError(externalTask, HttpStatus.INTERNAL_SERVER_ERROR.toString(),
                     "Not handled server error");

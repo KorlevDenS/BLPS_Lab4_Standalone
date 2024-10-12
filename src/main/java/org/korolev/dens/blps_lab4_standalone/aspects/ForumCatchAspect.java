@@ -21,7 +21,8 @@ public class ForumCatchAspect {
     public Object handleForumExceptions(ProceedingJoinPoint joinPoint, ExternalTask externalTask,
                                         ExternalTaskService externalTaskService) throws Throwable {
         try {
-            return joinPoint.proceed();
+            joinPoint.proceed();
+            return null;
         } catch (ForumException e) {
             externalTaskService.handleBpmnError(externalTask, e.getPossibleStatus().toString(), e.getMessage());
             return null;

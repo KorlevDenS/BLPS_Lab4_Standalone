@@ -27,7 +27,8 @@ public class TopicController {
     }
 
     @GetMapping("get/by/id/{topicId}")
-    public ResponseEntity<?> getTopicById(@PathVariable Integer topicId) throws ForumObjectNotFoundException {
+    public ResponseEntity<?> getTopicById(@PathVariable Integer topicId) throws ForumObjectNotFoundException,
+            ForbiddenActionException {
         return ResponseEntity.ok(topicService.findTopicById(topicId));
     }
 
@@ -52,6 +53,22 @@ public class TopicController {
     public ResponseEntity<?> deleteTopic(@PathVariable Integer topicId) throws ForumException {
         topicService.delete(topicId);
         return ResponseEntity.status(HttpStatus.OK).body("Topic with id " + topicId + " deleted");
+    }
+
+    @GetMapping("/get/all/to/approve")
+    public ResponseEntity<?> getAllToApprove() {
+        return ResponseEntity.ok(topicService.findAllWaitingForApprove());
+    }
+
+    @DeleteMapping("/approve/{approvalId}/{isApproved}")
+    public ResponseEntity<?> approveTopic(@PathVariable Integer approvalId, @PathVariable Boolean isApproved)
+            throws ForumException {
+        topicService.approveOrReject(approvalId, isApproved);
+        if (isApproved) {
+            return ResponseEntity.status(HttpStatus.OK).body("Topic is approved");
+        } else {
+            return ResponseEntity.status(HttpStatus.OK).body("Topic is rejected");
+        }
     }
 
     @PostMapping("/update")

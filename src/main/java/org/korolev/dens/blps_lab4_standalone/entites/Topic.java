@@ -42,6 +42,11 @@ public class Topic {
     @JoinColumn(name = "owner")
     private Client owner;
 
+    @JsonIgnore
+    @OneToOne(mappedBy = "topic", fetch = FetchType.EAGER)
+    private Approval approval;
+
+    @JsonIgnore //TODO
     @CreatedDate
     @Column(name = "created", nullable = false)
     private LocalDate created;

@@ -40,7 +40,7 @@ public class Client {
     private String password;
 
     @Email(message = "Невалидный email")
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    //@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "email", nullable = false, length = Integer.MAX_VALUE)
     private String email;
 

@@ -77,3 +77,8 @@ create table permission (
     role integer references role,
     primary key(client, role)
 );
+
+create table approval (
+    id serial primary key,
+    topic integer references topic on delete cascade
+);

@@ -36,11 +36,12 @@ public class TopicService {
     private final ChapterRepository chapterRepository;
     private final ImageRepository imageRepository;
     private final MessageProducer messageProducer;
+    private final ApprovalRepository approvalRepository;
 
 
     public TopicService(PlatformTransactionManager platformTransactionManager, ClientRepository clientRepository,
                         TopicRepository topicRepository, SubscriptionRepository subscriptionRepository,
-                        RatingRepository ratingRepository, ChapterRepository chapterRepository, ImageRepository imageRepository, MessageProducer messageProducer) {
+                        RatingRepository ratingRepository, ChapterRepository chapterRepository, ImageRepository imageRepository, MessageProducer messageProducer, ApprovalRepository approvalRepository) {
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
         this.clientRepository = clientRepository;
         this.topicRepository = topicRepository;
@@ -50,20 +51,51 @@ public class TopicService {
         this.imageRepository = imageRepository;
         this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
         this.messageProducer = messageProducer;
+        this.approvalRepository = approvalRepository;
     }
 
     public List<Topic> findAllByChapter(Integer chapterId) throws ForumObjectNotFoundException {
         if (chapterRepository.findById(chapterId).isEmpty()) {
             throw new ForumObjectNotFoundException("No chapter with id " + chapterId);
         }
-        return topicRepository.getAllByChapter(chapterId);
+        return topicRepository.getAllApprovedByChapter(chapterId);
     }
 
-    public Topic findTopicById(Integer topicId) throws ForumObjectNotFoundException {
+    @PreAuthorize("hasRole('MODER')")
+    public List<Approval> findAllWaitingForApprove() {
+        return approvalRepository.findAll();
+    }
+
+    @PreAuthorize("hasRole('MODER')")
+    public void approveOrReject(Integer approvalId, Boolean isApproved) throws ForumException {
+        Optional<Approval> optionalApproval = approvalRepository.findById(approvalId);
+        if (optionalApproval.isEmpty()) {
+            throw new ForumObjectNotFoundException("No approval with id " + approvalId);
+        }
+        if (isApproved) {
+            approvalRepository.deleteById(approvalId);
+        } else {
+            delete(optionalApproval.get().getTopic().getId());
+        }
+    }
+
+    @PreAuthorize("hasRole('MODER')")
+    public void approveByApprovalId(Integer approvalId) throws ForumObjectNotFoundException {
+        Optional<Approval> optionalApproval = approvalRepository.findById(approvalId);
+        if (optionalApproval.isEmpty()) {
+            throw new ForumObjectNotFoundException("No approval with id " + approvalId);
+        }
+        approvalRepository.deleteById(approvalId);
+    }
+
+    public Topic findTopicById(Integer topicId) throws ForumObjectNotFoundException, ForbiddenActionException {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Optional<Topic> optionalTopic = topicRepository.findById(topicId);
         if (optionalTopic.isEmpty()) {
             throw new ForumObjectNotFoundException("No topic with id " + topicId);
+        }
+        if (optionalTopic.get().getApproval() != null) {
+            throw new ForbiddenActionException("Topic " + topicId + " is not approved by moderator.");
         }
         if (userDetails == null) {
             messageProducer.sendMessage(new StatsMessage(optionalTopic.get().getId(), "", "watch",
@@ -217,17 +249,14 @@ public class TopicService {
     }
 
     @PreAuthorize("hasRole('USER')")
-    public Topic add(Topic topic, Integer chapterId, @Nullable MultipartFile img1,
+    public Approval add(Topic topic, Integer chapterId, @Nullable MultipartFile img1,
                                  @Nullable MultipartFile img2, @Nullable MultipartFile img3) throws ForumException {
         String login = ((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
                 .getUsername();
-        MultipartFile[] multipartFiles = {img1, img2, img3};
-        if (!validateImgList(Arrays.asList(multipartFiles))) {
-            throw new ImageAccessException("Неверный формат файла. Допустимы png и jpg", HttpStatus.BAD_REQUEST);
-        }
         TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
-        Topic t = transactionTemplate.execute(status -> {
+        Approval a = transactionTemplate.execute(status -> {
             Topic addedTopic;
+            Approval approval;
             try {
                 Optional<Chapter> optionalChapter = chapterRepository.findById(chapterId);
                 Optional<Client> optionalClient = clientRepository.findByLogin(login);
@@ -242,6 +271,9 @@ public class TopicService {
                 topic.setChapter(optionalChapter.get());
                 try {
                     addedTopic = topicRepository.save(topic);
+                    approval = new Approval();
+                    approval.setTopic(addedTopic);
+                    approvalRepository.save(approval);
                 } catch (Exception e) {
                     status.setRollbackOnly();
                     keeper.setEx(new ForumException("Error occurred when saving topic"));
@@ -249,16 +281,16 @@ public class TopicService {
                 }
                 List<String> imgLinks = new ArrayList<>();
                 try {
-                    if (img1 != null) {
+                    if (img1 != null && !img1.isEmpty()) {
                         imgLinks.add(uploadImage(img1, 1, addedTopic.getId()).toString());
                     }
-                    if (img2 != null) {
+                    if (img2 != null && !img2.isEmpty()) {
                         imgLinks.add(uploadImage(img2, 2, addedTopic.getId()).toString());
                     }
-                    if (img3 != null) {
+                    if (img3 != null && !img3.isEmpty()) {
                         imgLinks.add(uploadImage(img3, 3, addedTopic.getId()).toString());
                     }
-                } catch (IOException e) {
+                } catch (ImageAccessException | IOException e) {
                     for (String imgLink : imgLinks) {
                         File imgFile = new File(imgLink);
                         if (!imgFile.delete()) {
@@ -266,8 +298,12 @@ public class TopicService {
                         }
                     }
                     status.setRollbackOnly();
-                    keeper.setEx(new ForumLogicException("Unable to save topic because we cannot upload the image",
-                            HttpStatus.CONFLICT));
+                    if (e instanceof ImageAccessException) {
+                        keeper.setEx((ImageAccessException) e);
+                    } else {
+                        keeper.setEx(new ForumLogicException("Unable to save topic because we cannot upload the image",
+                                HttpStatus.CONFLICT));
+                    }
                     return null;
                 }
                 for (String imgLink : imgLinks) {
@@ -289,50 +325,34 @@ public class TopicService {
                 return null;
             }
             messageProducer.sendMessage(new StatsMessage(addedTopic.getId(), "", "add", login));
-            return addedTopic;
+            return approval;
         });
         keeper.throwIfSet();
-        return t;
+        return a;
     }
 
-    private Path uploadImage(MultipartFile img, int i, int id) throws IOException {
+    private Path uploadImage(MultipartFile img, int i, int id) throws IOException, ImageAccessException {
+        String imageFormat = detectImageFormat(img);
+        String storageFilename = "t" + id + "_i" + i + "_image" + imageFormat;
         String storage = System.getenv("PHOTO_STORAGE");
-        Path imagePath = Paths.get(storage).resolve("t" + id + "_i" + i + img.getOriginalFilename());
+        Path imagePath = Paths.get(storage).resolve(storageFilename);
         return Files.write(imagePath, img.getBytes());
     }
 
-    private boolean validateImgList(List<MultipartFile> perhapsImages) {
-        for (MultipartFile perhapsImg: perhapsImages) {
-            if (perhapsImg != null) {
-                try {
-                    if (!validateImageFormat(perhapsImg)) {
-                        return false;
-                    }
-                } catch (IOException e) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    private boolean validateImageFormat(MultipartFile perhapsImg) throws IOException {
-        String originalFileName = perhapsImg.getOriginalFilename();
-        if (!(originalFileName != null
-                && (originalFileName.toLowerCase().endsWith(".png") || originalFileName.toLowerCase().endsWith(".jpg"))
-        )) {
-            return false;
-        }
+    private String detectImageFormat(MultipartFile perhapsImg) throws IOException, ImageAccessException {
         byte[] header = perhapsImg.getBytes();
         if (header.length > 8 &&
                 header[0] == (byte) 0x89 && header[1] == (byte) 0x50 &&
                 header[2] == (byte) 0x4E && header[3] == (byte) 0x47 &&
                 header[4] == (byte) 0x0D && header[5] == (byte) 0x0A &&
                 header[6] == (byte) 0x1A && header[7] == (byte) 0x0A) {
-            return true;
+            return ".png";
         }
-        return header.length > 2 &&
-                header[0] == (byte) 0xFF && header[1] == (byte) 0xD8;
+        if (header.length > 2 &&
+                header[0] == (byte) 0xFF && header[1] == (byte) 0xD8) {
+            return ".jpg";
+        }
+        throw new ImageAccessException("Wrong file format. Only png/jpg available", HttpStatus.BAD_REQUEST);
     }
 
     @PreAuthorize("hasRole('USER')")

@@ -21,8 +21,26 @@ public class ChapterHandlers {
 
     @Bean
     @ExternalTaskSubscription(
+            topicName = "addChapter",
+            processDefinitionKey = "moderateForum",
+            includeExtensionProperties = true,
+            variableNames = {"jwtToken", "addedTitle", "addedDescription"}
+    )
+    public ExternalTaskHandler addChapter() {
+        return new ExternalTaskHandler() {
+            @Async
+            @SneakyThrows
+            @Override
+            public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+                chapterTaskList.performAddChapter(externalTask, externalTaskService);
+            }
+        };
+    }
+
+    @Bean
+    @ExternalTaskSubscription(
             topicName = "getChapters",
-            processDefinitionKey = "deleteChapter",
+            processDefinitionKeyIn = {"deleteChapter", "addTopic", "moderateForum", "interactWithTopic"},
             includeExtensionProperties = true
     )
     public ExternalTaskHandler getAllChapters() {

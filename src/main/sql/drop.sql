@@ -1,3 +1,4 @@
+drop table approval;
 drop table subscription;
 drop table notification;
 drop table comment;
