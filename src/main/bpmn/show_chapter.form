@@ -1,0 +1,23 @@
+{
+  "components": [
+    {
+      "text": "# Chapter №{{addedChapter.id}} {{addedChapter.title}}\n\n## Creator \n\n{{addedChapter.creator.login}}\n\n## Description\n\n{{addedChapter.description}}\n\n",
+      "label": "Text view",
+      "type": "text",
+      "layout": {
+        "row": "Row_02sfgct",
+        "columns": null
+      },
+      "id": "Field_01dyjxh"
+    }
+  ],
+  "type": "default",
+  "id": "show_chapter_from",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

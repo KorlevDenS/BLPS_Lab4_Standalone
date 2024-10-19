@@ -20,10 +20,64 @@ public class TopicHandlers {
 
     @Bean
     @ExternalTaskSubscription(
+            topicName = "unsubscribe",
+            processDefinitionKeyIn = {"interactWithTopic"},
+            includeExtensionProperties = true,
+            variableNames = {"jwtToken", "topicId"}
+    )
+    public ExternalTaskHandler unsubscribe() {
+        return new ExternalTaskHandler() {
+            @Async
+            @SneakyThrows
+            @Override
+            public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+                topicTaskList.performUnsubscribe(externalTask, externalTaskService);
+            }
+        };
+    }
+
+    @Bean
+    @ExternalTaskSubscription(
+            topicName = "subscribe",
+            processDefinitionKeyIn = {"interactWithTopic"},
+            includeExtensionProperties = true,
+            variableNames = {"jwtToken", "topicId"}
+    )
+    public ExternalTaskHandler subscribe() {
+        return new ExternalTaskHandler() {
+            @Async
+            @SneakyThrows
+            @Override
+            public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+                topicTaskList.performSubscribe(externalTask, externalTaskService);
+            }
+        };
+    }
+
+    @Bean
+    @ExternalTaskSubscription(
+            topicName = "showRating",
+            processDefinitionKeyIn = {"interactWithTopic"},
+            includeExtensionProperties = true,
+            variableNames = {"jwtToken", "topicId"}
+    )
+    public ExternalTaskHandler showTopicRatings() {
+        return new ExternalTaskHandler() {
+            @Async
+            @SneakyThrows
+            @Override
+            public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+                topicTaskList.performGetRating(externalTask, externalTaskService);
+            }
+        };
+    }
+
+    @Bean
+    @ExternalTaskSubscription(
             topicName = "rateTopic",
             processDefinitionKeyIn = {"interactWithTopic"},
             includeExtensionProperties = true,
-            variableNames = {"jwtToken", "selectedTopic", "rating"}
+            variableNames = {"jwtToken", "topicId", "rating"}
     )
     public ExternalTaskHandler rateTopic() {
         return new ExternalTaskHandler() {
@@ -41,7 +95,7 @@ public class TopicHandlers {
             topicName = "updateTopic",
             processDefinitionKeyIn = {"interactWithTopic"},
             includeExtensionProperties = true,
-            variableNames = {"jwtToken", "selectedTopic", "newTitle", "newText"}
+            variableNames = {"jwtToken", "topicId", "newTitle", "newText"}
     )
     public ExternalTaskHandler updateTopic() {
         return new ExternalTaskHandler() {
@@ -93,9 +147,9 @@ public class TopicHandlers {
     @Bean
     @ExternalTaskSubscription(
             topicName = "deleteTopic",
-            processDefinitionKey = "moderateForum",
+            processDefinitionKeyIn = {"moderateForum", "addTopic"},
             includeExtensionProperties = true,
-            variableNames = {"jwtToken", "selectedTopic"}
+            variableNames = {"jwtToken", "topicId"}
     )
     public ExternalTaskHandler deleteTopic() {
         return new ExternalTaskHandler() {

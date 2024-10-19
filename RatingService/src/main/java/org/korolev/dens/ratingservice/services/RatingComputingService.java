@@ -114,14 +114,11 @@ public class RatingComputingService {
                 }
             }
             double fame = k1 * temporalFame;
-            System.out.println("Was: " + topic + "\n");
-            System.out.println("k=" + k + ", a=" + a + ", b=" + b + ", k1=" + k1 + "\n");
             topic.setFame(fame);
             topic.setTemporal_fame(temporalFame);
             topic.setTemporal_views(0);
             topic.setTemporal_comments(0);
             topicRepository.save(topic);
-            System.out.println("Became: " + topic + "\n");
         }
     }
 

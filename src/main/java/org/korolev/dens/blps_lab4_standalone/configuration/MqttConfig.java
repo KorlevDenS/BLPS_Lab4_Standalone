@@ -30,7 +30,7 @@ public class MqttConfig {
     private final String queueName;
 
     public MqttConfig(
-            @Value("tcp://localhost:1883") String mqttBrokerUrl,
+            @Value("tcp://localRabbitMQ:1883") String mqttBrokerUrl,
             @Value("${spring.rabbitmq.username}") String userName,
             @Value("${spring.rabbitmq.password}") String password,
             @Value("${spring.rabbitmq.template.exchange}") String queueName

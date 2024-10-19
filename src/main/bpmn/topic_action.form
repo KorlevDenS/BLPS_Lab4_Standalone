@@ -1,0 +1,90 @@
+{
+  "components": [
+    {
+      "label": "Select topic by id",
+      "type": "select",
+      "layout": {
+        "row": "Row_0y5g7yf",
+        "columns": null
+      },
+      "id": "Field_1bnmok3",
+      "key": "topicId",
+      "valuesExpression": "=for obj in chapterTopics return obj.id"
+    },
+    {
+      "values": [
+        {
+          "label": "Update",
+          "value": "update"
+        },
+        {
+          "label": "Rate",
+          "value": "rate"
+        },
+        {
+          "label": "Subscribe",
+          "value": "subscribe"
+        },
+        {
+          "label": "Unsubscribe",
+          "value": "unsubscribe"
+        },
+        {
+          "label": "Show Rating",
+          "value": "showRating"
+        },
+        {
+          "label": "Comment",
+          "value": "comment"
+        }
+      ],
+      "label": "Radio group",
+      "type": "radio",
+      "layout": {
+        "row": "Row_0dayg3f",
+        "columns": null
+      },
+      "id": "Field_0n6frj6",
+      "key": "action",
+      "defaultValue": "update"
+    },
+    {
+      "label": "Table",
+      "type": "table",
+      "layout": {
+        "row": "Row_1hk1jvd",
+        "columns": null
+      },
+      "dataSource": "=for obj in chapterTopics return \n  {\n    \"id\": obj.id,\n    \"title\": obj.title,\n    \"text\": obj.text,\n    \"owner\": obj.owner\n  }",
+      "rowCount": 10,
+      "id": "Field_0inruat",
+      "columns": [
+        {
+          "label": "ID",
+          "key": "id"
+        },
+        {
+          "key": "title",
+          "label": "Title"
+        },
+        {
+          "key": "text",
+          "label": "Text"
+        },
+        {
+          "key": "owner",
+          "label": "Owner"
+        }
+      ]
+    }
+  ],
+  "type": "default",
+  "id": "topic_action_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

@@ -1,0 +1,34 @@
+{
+  "components": [
+    {
+      "label": "Ratings of topic {{topicId}}",
+      "type": "table",
+      "layout": {
+        "row": "Row_0c98wd8",
+        "columns": null
+      },
+      "rowCount": 10,
+      "columns": [
+        {
+          "key": "user",
+          "label": "User"
+        },
+        {
+          "key": "rating",
+          "label": "Rating"
+        }
+      ],
+      "id": "Field_1oqg89g",
+      "dataSource": "=for rating in ratings return\n  {\n    \"user\": rating.creator.login,\n    \"rating\": rating.rating\n  }"
+    }
+  ],
+  "type": "default",
+  "id": "ratings_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

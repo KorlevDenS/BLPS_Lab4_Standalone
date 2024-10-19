@@ -3,7 +3,6 @@ package org.korolev.dens.blps_lab4_standalone.services;
 import org.korolev.dens.blps_lab4_standalone.entites.*;
 import org.korolev.dens.blps_lab4_standalone.exceptions.*;
 import org.korolev.dens.blps_lab4_standalone.repositories.*;
-import org.korolev.dens.blps_lab4_standalone.requests.StatsMessage;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,12 +23,10 @@ public class CommentService {
     private final ClientRepository clientRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final NotificationRepository notificationRepository;
-    private final MessageProducer messageProducer;
 
     public CommentService(PlatformTransactionManager platformTransactionManager, CommentRepository commentRepository,
                           TopicRepository topicRepository, ClientRepository clientRepository,
-                          SubscriptionRepository subscriptionRepository, NotificationRepository notificationRepository,
-                          MessageProducer messageProducer) {
+                          SubscriptionRepository subscriptionRepository, NotificationRepository notificationRepository) {
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
         this.subscriptionRepository = subscriptionRepository;
         this.notificationRepository = notificationRepository;
@@ -37,7 +34,6 @@ public class CommentService {
         this.commentRepository = commentRepository;
         this.topicRepository = topicRepository;
         this.clientRepository = clientRepository;
-        this.messageProducer = messageProducer;
     }
 
     public List<Comment> findAllByTopic(Integer topicId) throws ForumObjectNotFoundException {
@@ -64,7 +60,6 @@ public class CommentService {
         TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
         Comment c = transactionTemplate.execute(status -> {
             Comment addedComment;
-            Client topicOwner;
             try {
                 if (quoteId > 0) {
                     Optional<Comment> optionalComment = commentRepository.findById(quoteId);
@@ -75,7 +70,7 @@ public class CommentService {
                     }
                     comment.setQuote(optionalComment.get());
                 }
-                Optional<Topic> optionalTopic = topicRepository.findById(topicId);
+                Optional<Topic> optionalTopic = topicRepository.findById(topicId); //TODO
                 Optional<Client> optionalClient = clientRepository.findByLogin(login);
                 if (optionalClient.isEmpty()) {
                     keeper.setEx(new ForbiddenActionException("Illegal access to resource: no such client in database"));
@@ -84,7 +79,6 @@ public class CommentService {
                     keeper.setEx(new ForumObjectNotFoundException("Topic " + topicId + " does not exist"));
                     return null;
                 }
-                topicOwner = optionalTopic.get().getOwner();
                 comment.setCommentator(optionalClient.get());
                 comment.setTopic(optionalTopic.get());
                 try {
@@ -115,7 +109,6 @@ public class CommentService {
                 keeper.setEx(new ForumException("Comment was not added"));
                 return null;
             }
-            messageProducer.sendMessage(new StatsMessage(topicId, login, "comment", topicOwner.getLogin()));
             return addedComment;
         });
         keeper.throwIfSet();

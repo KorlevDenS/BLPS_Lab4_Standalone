@@ -1,0 +1,90 @@
+{
+  "components": [
+    {
+      "label": "Login",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_14m5rvn",
+        "columns": null
+      },
+      "id": "Field_0k3xerc",
+      "key": "login",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Password",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_0uxzbxi",
+        "columns": null
+      },
+      "id": "Field_0f34k74",
+      "key": "password",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Email",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_0mygz9d",
+        "columns": null
+      },
+      "id": "Field_0wxpmky",
+      "key": "email",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "values": [
+        {
+          "label": "Woman",
+          "value": "жен"
+        },
+        {
+          "label": "Man",
+          "value": "муж"
+        }
+      ],
+      "label": "Sex",
+      "type": "select",
+      "layout": {
+        "row": "Row_1419h91",
+        "columns": null
+      },
+      "id": "Field_0iza3xo",
+      "key": "sex",
+      "defaultValue": "муж",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Birthdate",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_0vypda6",
+        "columns": null
+      },
+      "id": "Field_19rz2nm",
+      "key": "birthday",
+      "description": "yyyy-mm-dd",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "register",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

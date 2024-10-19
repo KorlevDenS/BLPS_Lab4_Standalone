@@ -32,6 +32,7 @@ public class Comment {
     @JoinColumn(name = "commentator")
     private Client commentator;
 
+    @JsonIgnore //TODO
     @CreatedDate
     @Column(name = "created", nullable = false)
     private LocalDate created;

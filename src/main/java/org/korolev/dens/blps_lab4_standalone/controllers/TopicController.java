@@ -3,7 +3,10 @@ package org.korolev.dens.blps_lab4_standalone.controllers;
 import jakarta.annotation.Nullable;
 import org.korolev.dens.blps_lab4_standalone.entites.*;
 import org.korolev.dens.blps_lab4_standalone.exceptions.*;
+import org.korolev.dens.blps_lab4_standalone.requests.StatsMessage;
+import org.korolev.dens.blps_lab4_standalone.services.MessageProducer;
 import org.korolev.dens.blps_lab4_standalone.services.TopicService;
+import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -16,9 +19,11 @@ import org.springframework.web.multipart.MultipartFile;
 public class TopicController {
 
     private final TopicService topicService;
+    private final MessageProducer messageProducer;
 
-    public TopicController(TopicService topicService) {
+    public TopicController(TopicService topicService, MessageProducer messageProducer) {
         this.topicService = topicService;
+        this.messageProducer = messageProducer;
     }
 
     @GetMapping("/get/all/by/chapter/{chapterId}")
@@ -29,7 +34,12 @@ public class TopicController {
     @GetMapping("get/by/id/{topicId}")
     public ResponseEntity<?> getTopicById(@PathVariable Integer topicId) throws ForumObjectNotFoundException,
             ForbiddenActionException {
-        return ResponseEntity.ok(topicService.findTopicById(topicId));
+        Pair<Topic, String> gotTopicAndWatcher = topicService.findTopicById(topicId);
+        messageProducer.sendMessage(new StatsMessage(
+                gotTopicAndWatcher.getFirst().getId(), gotTopicAndWatcher.getSecond(),
+                "watch", gotTopicAndWatcher.getFirst().getOwner().getLogin())
+        );
+        return ResponseEntity.ok(gotTopicAndWatcher.getFirst());
     }
 
     @GetMapping("get/image/{URL}")
@@ -46,12 +56,19 @@ public class TopicController {
         Topic topic = new Topic();
         topic.setTitle(title);
         topic.setText(text);
-        return ResponseEntity.ok(topicService.add(topic, chapterId, img1, img2, img3));
+        Approval addedApproval = topicService.add(topic, chapterId, img1, img2, img3);
+        messageProducer.sendMessage(new StatsMessage(
+                addedApproval.getTopic().getId(), "",
+                "add", addedApproval.getTopic().getOwner().getLogin())
+        );
+        return ResponseEntity.ok(addedApproval);
     }
 
     @DeleteMapping("/delete/{topicId}")
     public ResponseEntity<?> deleteTopic(@PathVariable Integer topicId) throws ForumException {
-        topicService.delete(topicId);
+        Topic deletedTopic = topicService.delete(topicId);
+        messageProducer.sendMessage(new StatsMessage(topicId, "", "delete",
+                deletedTopic.getOwner().getLogin()));
         return ResponseEntity.status(HttpStatus.OK).body("Topic with id " + topicId + " deleted");
     }
 
@@ -79,7 +96,12 @@ public class TopicController {
     @PostMapping("/add/rating/{topicId}")
     public ResponseEntity<?> addRating(@RequestBody @Validated Rating rating, @PathVariable Integer topicId)
             throws ForumException {
-        return ResponseEntity.ok(topicService.rate(rating, topicId));
+        Rating addedRating = topicService.rate(rating, topicId);
+        messageProducer.sendMessage(new StatsMessage(
+                topicId, addedRating.getCreator().getLogin(),
+                addedRating.getRating().toString(), addedRating.getTopic().getOwner().getLogin())
+        );
+        return ResponseEntity.ok(addedRating);
     }
 
     @GetMapping("/get/rating/{topicId}")

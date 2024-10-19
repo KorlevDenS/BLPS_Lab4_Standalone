@@ -1,0 +1,60 @@
+{
+  "components": [
+    {
+      "label": "Jwt",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_0n91rn5",
+        "columns": null
+      },
+      "id": "Field_0ggs63t",
+      "key": "jwtToken",
+      "defaultValue": "${jwtToken}"
+    },
+    {
+      "label": "Select comment to delete",
+      "type": "select",
+      "layout": {
+        "row": "Row_1li4r5o",
+        "columns": null
+      },
+      "id": "Field_0161qo6",
+      "key": "selectedComment",
+      "valuesExpression": "=for obj in comments return obj.id"
+    },
+    {
+      "label": "Table",
+      "type": "table",
+      "layout": {
+        "row": "Row_1yd0ljf",
+        "columns": null
+      },
+      "rowCount": 10,
+      "columns": [
+        {
+          "label": "ID",
+          "key": "id"
+        },
+        {
+          "key": "text",
+          "label": "Text"
+        },
+        {
+          "label": "Commentator",
+          "key": "commentator"
+        }
+      ],
+      "id": "Field_0c2192v",
+      "dataSource": "=for obj in comments return \n  {\n    \"id\": obj.id,\n    \"text\": obj.text,\n    \"commentator\": obj.commentator.login\n  }"
+    }
+  ],
+  "type": "default",
+  "id": "select_comment_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

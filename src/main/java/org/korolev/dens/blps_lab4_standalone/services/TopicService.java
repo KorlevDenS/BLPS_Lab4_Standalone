@@ -4,7 +4,6 @@ import jakarta.annotation.Nullable;
 import org.korolev.dens.blps_lab4_standalone.entites.*;
 import org.korolev.dens.blps_lab4_standalone.exceptions.*;
 import org.korolev.dens.blps_lab4_standalone.repositories.*;
-import org.korolev.dens.blps_lab4_standalone.requests.StatsMessage;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.data.util.Pair;
@@ -35,13 +34,13 @@ public class TopicService {
     private final RatingRepository ratingRepository;
     private final ChapterRepository chapterRepository;
     private final ImageRepository imageRepository;
-    private final MessageProducer messageProducer;
     private final ApprovalRepository approvalRepository;
 
 
     public TopicService(PlatformTransactionManager platformTransactionManager, ClientRepository clientRepository,
                         TopicRepository topicRepository, SubscriptionRepository subscriptionRepository,
-                        RatingRepository ratingRepository, ChapterRepository chapterRepository, ImageRepository imageRepository, MessageProducer messageProducer, ApprovalRepository approvalRepository) {
+                        RatingRepository ratingRepository, ChapterRepository chapterRepository,
+                        ImageRepository imageRepository, ApprovalRepository approvalRepository) {
         this.transactionTemplate = new TransactionTemplate(platformTransactionManager);
         this.clientRepository = clientRepository;
         this.topicRepository = topicRepository;
@@ -50,7 +49,6 @@ public class TopicService {
         this.chapterRepository = chapterRepository;
         this.imageRepository = imageRepository;
         this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
-        this.messageProducer = messageProducer;
         this.approvalRepository = approvalRepository;
     }
 
@@ -88,7 +86,7 @@ public class TopicService {
         approvalRepository.deleteById(approvalId);
     }
 
-    public Topic findTopicById(Integer topicId) throws ForumObjectNotFoundException, ForbiddenActionException {
+    public Pair<Topic, String> findTopicById(Integer topicId) throws ForumObjectNotFoundException, ForbiddenActionException {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Optional<Topic> optionalTopic = topicRepository.findById(topicId);
         if (optionalTopic.isEmpty()) {
@@ -97,14 +95,7 @@ public class TopicService {
         if (optionalTopic.get().getApproval() != null) {
             throw new ForbiddenActionException("Topic " + topicId + " is not approved by moderator.");
         }
-        if (userDetails == null) {
-            messageProducer.sendMessage(new StatsMessage(optionalTopic.get().getId(), "", "watch",
-                    optionalTopic.get().getOwner().getLogin()));
-        } else {
-            messageProducer.sendMessage(new StatsMessage(optionalTopic.get().getId(), userDetails.getUsername(),
-                    "watch", optionalTopic.get().getOwner().getLogin()));
-        }
-        return optionalTopic.get();
+        return Pair.of(optionalTopic.get(), userDetails == null ? "" : userDetails.getUsername());
     }
 
     public Resource getImageFromDisk(String imageUrl) throws ImageAccessException {
@@ -124,9 +115,9 @@ public class TopicService {
     }
 
     @PreAuthorize("hasRole('MODER')")
-    public void delete(Integer topicId) throws ForumException {
+    public Topic delete(Integer topicId) throws ForumException {
         TransactionExceptionKeeper keeper = new TransactionExceptionKeeper();
-        transactionTemplate.execute(status -> {
+        Topic deletedTopic = transactionTemplate.execute(status -> {
             Pair<Path, Map<Path, Path>> backup = null;
             Topic topic;
             try {
@@ -136,7 +127,6 @@ public class TopicService {
                 keeper.setEx(new ForumObjectNotFoundException(e.getMessage()));
                 return null;
             }
-            Client topicOwner = topic.getOwner();
             try {
                 try {
                     backup = makeImgBackup(topic);
@@ -181,11 +171,10 @@ public class TopicService {
                 return null;
             }
             deleteReservedFiles(backup.getFirst());
-            messageProducer.sendMessage(new StatsMessage(topicId, "", "delete",
-                    topicOwner.getLogin()));
-            return null;
+            return topic;
         });
         keeper.throwIfSet();
+        return deletedTopic;
     }
 
     private void restoreDeletedFiles(Map<Path, Path> imgMap) {
@@ -324,7 +313,6 @@ public class TopicService {
                 keeper.setEx(new ForumException("Topic was not added"));
                 return null;
             }
-            messageProducer.sendMessage(new StatsMessage(addedTopic.getId(), "", "add", login));
             return approval;
         });
         keeper.throwIfSet();
@@ -458,16 +446,11 @@ public class TopicService {
                 Optional<Rating> optionalRating = ratingRepository.findRatingByCreatorAndTopic(client, topic);
                 if (optionalRating.isPresent()) {
                     ratingRepository.updateRatingByClientAndTopic(login, rating.getRating(), topicId);
-                    messageProducer.sendMessage(new StatsMessage(topicId, login, rating.getRating().toString(),
-                            topic.getOwner().getLogin()));
                     return optionalRating.get();
                 } else {
                     rating.setCreator(client);
                     rating.setTopic(topic);
-                    Rating addedRating = ratingRepository.save(rating);
-                    messageProducer.sendMessage(new StatsMessage(topicId, login, rating.getRating().toString(),
-                            topic.getOwner().getLogin()));
-                    return addedRating;
+                    return ratingRepository.save(rating);
                 }
             } catch (NoSuchElementException e) {
                 status.setRollbackOnly();

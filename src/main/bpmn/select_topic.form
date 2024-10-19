@@ -1,0 +1,85 @@
+{
+  "components": [
+    {
+      "label": "Jwt",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1qtjw6w",
+        "columns": null
+      },
+      "id": "Field_0hl64ae",
+      "key": "jwtToken",
+      "defaultValue": "${jwtToken}"
+    },
+    {
+      "label": "Select topic by id",
+      "type": "select",
+      "layout": {
+        "row": "Row_1gt7nw6",
+        "columns": null
+      },
+      "id": "Field_0o903g9",
+      "key": "topicId",
+      "valuesExpression": "=for obj in chapterTopics return obj.id"
+    },
+    {
+      "values": [
+        {
+          "label": "Edit comments",
+          "value": "edit"
+        },
+        {
+          "label": "Delete",
+          "value": "delete"
+        }
+      ],
+      "label": "Delete topic or edit comments?",
+      "type": "radio",
+      "layout": {
+        "row": "Row_13m2lqw",
+        "columns": null
+      },
+      "id": "Field_1jeb529",
+      "key": "selected",
+      "defaultValue": "edit"
+    },
+    {
+      "label": "Table",
+      "type": "table",
+      "layout": {
+        "row": "Row_0c4toar",
+        "columns": null
+      },
+      "dataSource": "=for obj in chapterTopics return \n  {\n    \"id\": obj.id,\n    \"title\": obj.title,\n    \"text\": obj.text,\n    \"owner\": obj.owner\n  }",
+      "rowCount": 10,
+      "id": "Field_1e9yojm",
+      "columns": [
+        {
+          "label": "ID",
+          "key": "id"
+        },
+        {
+          "key": "title",
+          "label": "Title"
+        },
+        {
+          "key": "text",
+          "label": "Text"
+        },
+        {
+          "key": "owner",
+          "label": "Owner"
+        }
+      ]
+    }
+  ],
+  "type": "default",
+  "id": "select_topic_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

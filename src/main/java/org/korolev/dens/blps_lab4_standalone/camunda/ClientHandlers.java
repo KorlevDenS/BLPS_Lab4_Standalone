@@ -21,6 +21,24 @@ public class ClientHandlers {
 
     @Bean
     @ExternalTaskSubscription(
+            topicName = "getNotifications",
+            processDefinitionKey = "getNotifications",
+            includeExtensionProperties = true,
+            variableNames = {"jwtToken"}
+    )
+    public ExternalTaskHandler getNotifications() {
+        return new ExternalTaskHandler() {
+            @Async
+            @SneakyThrows
+            @Override
+            public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+                clientTaskList.performGetNotifications(externalTask, externalTaskService);
+            }
+        };
+    }
+
+    @Bean
+    @ExternalTaskSubscription(
             topicName = "giveRole",
             processDefinitionKey = "manageRoles",
             includeExtensionProperties = true,

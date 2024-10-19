@@ -1,0 +1,105 @@
+{
+  "components": [
+    {
+      "label": "Jwt",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_119ultf",
+        "columns": null
+      },
+      "id": "Field_1yrl1wl",
+      "key": "jwtToken",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Select chapter to add topic to",
+      "type": "select",
+      "layout": {
+        "row": "Row_193wge1",
+        "columns": null
+      },
+      "id": "Field_11ncg78",
+      "key": "selected",
+      "validate": {
+        "required": true
+      },
+      "valuesExpression": "=for obj in chapters return obj.id"
+    },
+    {
+      "label": "Come up with a title for your new topic",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_05vcswl",
+        "columns": null
+      },
+      "id": "Field_0wn9qfc",
+      "key": "topicTitle",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Write the ext of your topic here",
+      "type": "textarea",
+      "layout": {
+        "row": "Row_0mgwoe1",
+        "columns": null
+      },
+      "id": "Field_1ti3iu4",
+      "key": "topicText",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Do you want to add images?",
+      "type": "checkbox",
+      "layout": {
+        "row": "Row_086oxrp",
+        "columns": null
+      },
+      "id": "Field_1o7ec2b",
+      "key": "addImages"
+    },
+    {
+      "label": "Chapters",
+      "type": "table",
+      "layout": {
+        "row": "Row_1uyjk4q",
+        "columns": null
+      },
+      "dataSource": "=for obj in chapters return \n  {\n    \"id\": obj.id,\n    \"title\": obj.title,\n    \"description\": obj.description,\n    \"creator\": obj.creator.login\n  }",
+      "rowCount": 10,
+      "id": "Field_1mvp4rv",
+      "columns": [
+        {
+          "label": "ID",
+          "key": "id"
+        },
+        {
+          "key": "title",
+          "label": "Title"
+        },
+        {
+          "key": "description",
+          "label": "Description"
+        },
+        {
+          "key": "creator",
+          "label": "Creator"
+        }
+      ]
+    }
+  ],
+  "type": "default",
+  "id": "add_topic_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

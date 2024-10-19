@@ -7,7 +7,9 @@ import org.camunda.bpm.engine.variable.Variables;
 import org.korolev.dens.blps_lab4_standalone.aspects.Authorize;
 import org.korolev.dens.blps_lab4_standalone.aspects.ConfusionReport;
 import org.korolev.dens.blps_lab4_standalone.entites.Client;
+import org.korolev.dens.blps_lab4_standalone.entites.Notification;
 import org.korolev.dens.blps_lab4_standalone.entites.Role;
+import org.korolev.dens.blps_lab4_standalone.exceptions.ForbiddenActionException;
 import org.korolev.dens.blps_lab4_standalone.exceptions.ForumLogicException;
 import org.korolev.dens.blps_lab4_standalone.exceptions.ForumObjectNotFoundException;
 import org.korolev.dens.blps_lab4_standalone.services.ClientService;
@@ -33,6 +35,17 @@ public class ClientTaskList {
         this.authenticationManager = authenticationManager;
         this.jwtTokenService = jwtTokenService;
         this.clientService = clientService;
+    }
+
+    @Authorize
+    @ConfusionReport
+    public void performGetNotifications(ExternalTask externalTask, ExternalTaskService externalTaskService)
+            throws ForbiddenActionException {
+        List<Notification> notifications = clientService.findNotifications();
+        List<String> notificationsTexts = notifications.stream().map(Notification::getDescription).toList();
+        VariableMap variableMap = Variables.createVariables();
+        variableMap.put("notifications", notificationsTexts);
+        externalTaskService.complete(externalTask, variableMap);
     }
 
     @Authorize

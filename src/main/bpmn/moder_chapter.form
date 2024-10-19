@@ -1,0 +1,47 @@
+{
+  "components": [
+    {
+      "label": "Jwt",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1ki28w9",
+        "columns": null
+      },
+      "id": "Field_1ve54fd",
+      "key": "jwtToken",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "values": [
+        {
+          "label": "Edit chapter topics",
+          "value": "edit"
+        },
+        {
+          "label": "Add new chapter",
+          "value": "add"
+        }
+      ],
+      "label": "Moderate chapters",
+      "type": "radio",
+      "layout": {
+        "row": "Row_1smnhhy",
+        "columns": null
+      },
+      "id": "Field_1whwval",
+      "key": "moderAction",
+      "defaultValue": "add"
+    }
+  ],
+  "type": "default",
+  "id": "moder_chapter_from",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

@@ -1,0 +1,30 @@
+{
+  "components": [
+    {
+      "label": "Notifications",
+      "type": "table",
+      "layout": {
+        "row": "Row_1t02wz1",
+        "columns": null
+      },
+      "rowCount": 10,
+      "columns": [
+        {
+          "key": "notification",
+          "label": "Notification"
+        }
+      ],
+      "id": "Field_0h57j34",
+      "dataSource": "=for obj in notifications return\n  {\n    \"notification\": obj\n  }"
+    }
+  ],
+  "type": "default",
+  "id": "notifications_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

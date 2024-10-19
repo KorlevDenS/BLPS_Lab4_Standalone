@@ -12,7 +12,7 @@ import java.util.Set;
 @Getter
 @Setter
 @Entity
-@Table(name = "client")
+@Table(name = "client_stats")
 public class Client {
     @Id
     @Column(name = "login", nullable = false, length = Integer.MAX_VALUE)

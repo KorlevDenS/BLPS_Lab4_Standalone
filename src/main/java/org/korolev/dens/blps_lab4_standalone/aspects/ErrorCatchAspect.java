@@ -24,6 +24,7 @@ public class ErrorCatchAspect {
             joinPoint.proceed();
             return null;
         } catch (Exception e) {
+            //throw new RuntimeException(e);
             externalTaskService.handleBpmnError(externalTask, HttpStatus.INTERNAL_SERVER_ERROR.toString(),
                     "Not handled server error");
             System.out.println("NOT HANDLED EXCEPTION: " + e.getMessage());

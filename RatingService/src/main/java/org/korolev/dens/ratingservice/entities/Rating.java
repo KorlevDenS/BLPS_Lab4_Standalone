@@ -15,12 +15,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Getter
 @Setter
 @Entity
-@Table(name = "rating")
+@Table(name = "rating_stats")
 @EntityListeners(AuditingEntityListener.class)
 public class Rating {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @ColumnDefault("nextval('rating_id_seq'")
+    @ColumnDefault("nextval('rating_stats_id_seq'")
     @Column(name = "id", nullable = false)
     private Integer id;
 

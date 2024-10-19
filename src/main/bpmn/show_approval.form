@@ -1,0 +1,47 @@
+{
+  "components": [
+    {
+      "text": "# Approval №{{approval.id}}\n\n## Topic #{{approval.topic.id}} {{approval.topic.title}}\n\n## Creator\n{{approval.topic.owner.login}}\n\n## Text\n{{approval.topic.text}}\n\n## Images\n\n{{string join(for img in approval.topic.images return img.link, \"\\n\")}}",
+      "label": "Text view",
+      "type": "text",
+      "layout": {
+        "row": "Row_0lq3vhr",
+        "columns": null
+      },
+      "id": "Field_0t83pmb"
+    },
+    {
+      "values": [
+        {
+          "label": "Approve",
+          "value": "approve"
+        },
+        {
+          "label": "Reject",
+          "value": "reject"
+        }
+      ],
+      "label": "Approve or reject ?",
+      "type": "radio",
+      "layout": {
+        "row": "Row_0vfsufg",
+        "columns": null
+      },
+      "id": "Field_147emlv",
+      "key": "approveChoice",
+      "validate": {
+        "required": true
+      },
+      "defaultValue": "approve"
+    }
+  ],
+  "type": "default",
+  "id": "show_approval_from",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

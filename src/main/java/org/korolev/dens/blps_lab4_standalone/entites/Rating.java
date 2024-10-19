@@ -41,6 +41,7 @@ public class Rating {
     @Column(name = "rating")
     private Integer rating;
 
+    @JsonIgnore //TODO
     @CreatedDate
     @Column(name = "created", nullable = false)
     private LocalDate created;

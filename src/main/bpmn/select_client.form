@@ -1,0 +1,115 @@
+{
+  "components": [
+    {
+      "label": "Select client",
+      "type": "select",
+      "layout": {
+        "row": "Row_19zncqd",
+        "columns": null
+      },
+      "id": "Field_1mx7js0",
+      "key": "selectedClient",
+      "validate": {
+        "required": true
+      },
+      "valuesExpression": "=for client in clients return client.login"
+    },
+    {
+      "label": "Select role",
+      "type": "select",
+      "layout": {
+        "row": "Row_09dr67l",
+        "columns": null
+      },
+      "id": "Field_1ahhb6e",
+      "key": "selectedRole",
+      "validate": {
+        "required": true
+      },
+      "valuesExpression": "=for role in roles return role.id"
+    },
+    {
+      "values": [
+        {
+          "label": "Strip Role",
+          "value": "strip"
+        },
+        {
+          "label": "Give Role",
+          "value": "give"
+        }
+      ],
+      "label": "Action",
+      "type": "radio",
+      "layout": {
+        "row": "Row_0up5i9i",
+        "columns": null
+      },
+      "id": "Field_1hig5do",
+      "key": "choice",
+      "validate": {
+        "required": true
+      },
+      "defaultValue": "give"
+    },
+    {
+      "label": "Table",
+      "type": "table",
+      "layout": {
+        "row": "Row_16mmngv",
+        "columns": null
+      },
+      "rowCount": 10,
+      "columns": [
+        {
+          "label": "ID",
+          "key": "id"
+        },
+        {
+          "label": "Name",
+          "key": "name"
+        }
+      ],
+      "id": "Field_1en50me",
+      "dataSource": "=for obj in roles return \n  {\n    \"id\": obj.id,\n    \"name\": obj.name\n  }"
+    },
+    {
+      "label": "Table",
+      "type": "table",
+      "layout": {
+        "row": "Row_1yvhgs9",
+        "columns": null
+      },
+      "rowCount": 10,
+      "columns": [
+        {
+          "key": "login",
+          "label": "Login"
+        },
+        {
+          "label": "Email",
+          "key": "email"
+        },
+        {
+          "label": "Sex",
+          "key": "sex"
+        },
+        {
+          "label": "Roles",
+          "key": "roles"
+        }
+      ],
+      "id": "Field_1ihejkx",
+      "dataSource": "=for obj in clients return \n  {\n    \"login\": obj.login,\n    \"email\": obj.email,\n    \"sex\": obj.sex,\n    \"roles\": string join(for role in obj.roles return role.name, \", \")\n  }"
+    }
+  ],
+  "type": "default",
+  "id": "select_client_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

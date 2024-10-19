@@ -1,0 +1,70 @@
+{
+  "components": [
+    {
+      "label": "Jwt",
+      "type": "textfield",
+      "layout": {
+        "row": "Row_1mgubb7",
+        "columns": null
+      },
+      "id": "Field_00xav9l",
+      "key": "jwtToken",
+      "validate": {
+        "required": true
+      },
+      "defaultValue": "${jwtToken}"
+    },
+    {
+      "label": "Select chapter by id",
+      "type": "select",
+      "layout": {
+        "row": "Row_090wxbj",
+        "columns": null
+      },
+      "id": "Field_1hq7ph6",
+      "key": "selected",
+      "valuesExpression": "=for obj in chapters return obj.id",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Chapters",
+      "type": "table",
+      "layout": {
+        "row": "Row_1wni2na",
+        "columns": null
+      },
+      "dataSource": "=for obj in chapters return \n  {\n    \"id\": obj.id,\n    \"title\": obj.title,\n    \"description\": obj.description,\n    \"creator\": obj.creator.login\n  }",
+      "rowCount": 10,
+      "id": "Field_17728vt",
+      "columns": [
+        {
+          "label": "ID",
+          "key": "id"
+        },
+        {
+          "key": "title",
+          "label": "Title"
+        },
+        {
+          "key": "description",
+          "label": "Description"
+        },
+        {
+          "key": "creator",
+          "label": "Creator"
+        }
+      ]
+    }
+  ],
+  "type": "default",
+  "id": "select_chapter_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

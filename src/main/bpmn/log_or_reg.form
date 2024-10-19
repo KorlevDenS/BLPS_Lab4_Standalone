@@ -1,0 +1,34 @@
+{
+  "components": [
+    {
+      "values": [
+        {
+          "label": "Register",
+          "value": "register"
+        },
+        {
+          "label": "Login",
+          "value": "login"
+        }
+      ],
+      "label": "Login or Register",
+      "type": "select",
+      "layout": {
+        "row": "Row_03pwszt",
+        "columns": null
+      },
+      "id": "Field_0jkvc87",
+      "key": "select_vv5vrx",
+      "defaultValue": "login"
+    }
+  ],
+  "type": "default",
+  "id": "login_or_register_form",
+  "exporter": {
+    "name": "Camunda Modeler",
+    "version": "5.27.0"
+  },
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

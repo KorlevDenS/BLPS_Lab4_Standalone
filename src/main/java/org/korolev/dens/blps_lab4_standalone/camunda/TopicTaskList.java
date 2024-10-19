@@ -9,9 +9,12 @@ import org.korolev.dens.blps_lab4_standalone.aspects.ConfusionReport;
 import org.korolev.dens.blps_lab4_standalone.entites.Approval;
 import org.korolev.dens.blps_lab4_standalone.entites.Rating;
 import org.korolev.dens.blps_lab4_standalone.entites.Topic;
+import org.korolev.dens.blps_lab4_standalone.exceptions.ForbiddenActionException;
 import org.korolev.dens.blps_lab4_standalone.exceptions.ForumException;
+import org.korolev.dens.blps_lab4_standalone.exceptions.ForumLogicException;
 import org.korolev.dens.blps_lab4_standalone.exceptions.ForumObjectNotFoundException;
 import org.korolev.dens.blps_lab4_standalone.requests.SimpleTopic;
+import org.korolev.dens.blps_lab4_standalone.requests.StatsMessage;
 import org.korolev.dens.blps_lab4_standalone.services.TopicService;
 import org.springframework.stereotype.Component;
 
@@ -31,22 +34,57 @@ public class TopicTaskList {
 
     @Authorize
     @ConfusionReport
+    public void performUnsubscribe(ExternalTask externalTask, ExternalTaskService externalTaskService)
+            throws ForumException {
+        Integer topicId = externalTask.getVariable("topicId");
+        topicService.unsubscribe(topicId);
+        externalTaskService.complete(externalTask);
+    }
+
+    @Authorize
+    @ConfusionReport
+    public void performSubscribe(ExternalTask externalTask, ExternalTaskService externalTaskService)
+            throws ForbiddenActionException, ForumLogicException, ForumObjectNotFoundException {
+        Integer topicId = externalTask.getVariable("topicId");
+        topicService.subscribe(topicId);
+        externalTaskService.complete(externalTask);
+    }
+
+    @Authorize
+    @ConfusionReport
+    public void performGetRating(ExternalTask externalTask, ExternalTaskService externalTaskService)
+            throws ForumObjectNotFoundException {
+        Integer topicId = externalTask.getVariable("topicId");
+        List<Rating> ratings = topicService.findTopicRatings(topicId);
+        VariableMap variableMap = Variables.createVariables();
+        variableMap.put("ratings", ratings);
+        externalTaskService.complete(externalTask, variableMap);
+    }
+
+    @Authorize
+    @ConfusionReport
     public void performRateTopic(ExternalTask externalTask, ExternalTaskService externalTaskService)
             throws ForumException {
-        Integer topicId = externalTask.getVariable("selectedTopic");
-        Integer rating = externalTask.getVariable("rating");
+        Integer topicId = externalTask.getVariable("topicId");
+        Integer rating = Integer.parseInt(externalTask.getVariable("rating"));
         Rating ratingObj = new Rating();
         ratingObj.setRating(rating);
         ratingObj.setCreated(LocalDate.now());
-        topicService.rate(ratingObj, topicId);
-        externalTaskService.complete(externalTask);
+        Rating addedRating = topicService.rate(ratingObj, topicId);
+        StatsMessage statsMessage = new StatsMessage(
+                topicId, addedRating.getCreator().getLogin(),
+                addedRating.getRating().toString(), addedRating.getTopic().getOwner().getLogin()
+        );
+        VariableMap variableMap = Variables.createVariables();
+        variableMap.put("message", statsMessage);
+        externalTaskService.complete(externalTask, variableMap);
     }
 
     @Authorize
     @ConfusionReport
     public void performUpdateTopic(ExternalTask externalTask, ExternalTaskService externalTaskService)
             throws ForumException {
-        Integer topicId = externalTask.getVariable("selectedTopic");
+        Integer topicId = externalTask.getVariable("topicId");
         String newTitle = externalTask.getVariable("newTitle");
         String newText = externalTask.getVariable("newText");
         Topic updateTopic = new Topic();
@@ -83,9 +121,13 @@ public class TopicTaskList {
     @ConfusionReport
     public void performDeleteTopic(ExternalTask externalTask, ExternalTaskService externalTaskService)
             throws ForumException {
-        Integer topicId = externalTask.getVariable("selectedTopic");
-        topicService.delete(topicId);
-        externalTaskService.complete(externalTask);
+        Integer topicId = externalTask.getVariable("topicId");
+        Topic deletedTopic = topicService.delete(topicId);
+        StatsMessage statsMessage = new StatsMessage(topicId, "", "delete",
+                deletedTopic.getOwner().getLogin());
+        VariableMap variableMap = Variables.createVariables();
+        variableMap.put("message", statsMessage);
+        externalTaskService.complete(externalTask, variableMap);
     }
 
 
@@ -102,11 +144,16 @@ public class TopicTaskList {
         Topic topic = new Topic();
         topic.setTitle(externalTask.getVariable("topicTitle"));
         topic.setText(externalTask.getVariable("topicText"));
-        Approval approval = topicService.add(topic, externalTask.getVariable("selected"), image1, image2, image3);
+        Approval addedApproval = topicService.add(topic, externalTask.getVariable("selected"), image1, image2, image3);
+        StatsMessage statsMessage = new StatsMessage(
+                addedApproval.getTopic().getId(), "",
+                "add", addedApproval.getTopic().getOwner().getLogin()
+        );
         VariableMap variableMap = Variables.createVariables();
-        variableMap.put("approval", approval);
-        variableMap.put("approvalId", approval.getId());
-        variableMap.put("topicId", approval.getTopic().getId());
+        variableMap.put("approval", addedApproval);
+        variableMap.put("approvalId", addedApproval.getId());
+        variableMap.put("topicId", addedApproval.getTopic().getId());
+        variableMap.put("message", statsMessage);
         externalTaskService.complete(externalTask, variableMap);
     }
 

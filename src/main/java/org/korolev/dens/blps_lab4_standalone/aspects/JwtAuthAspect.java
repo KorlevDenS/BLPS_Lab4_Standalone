@@ -23,11 +23,11 @@ import org.springframework.stereotype.Component;
 public class JwtAuthAspect {
 
     private final JwtTokenService jwtTokenService;
-    private final ClientService clientDetailsService;
+    private final ClientService clientService;
 
-    public JwtAuthAspect(JwtTokenService jwtTokenService, ClientService clientDetailsService) {
+    public JwtAuthAspect(JwtTokenService jwtTokenService, ClientService clientService) {
         this.jwtTokenService = jwtTokenService;
-        this.clientDetailsService = clientDetailsService;
+        this.clientService = clientService;
     }
 
     @Around(
@@ -44,7 +44,7 @@ public class JwtAuthAspect {
         try {
             String username = jwtTokenService.extractUserName(jwtToken);
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = clientDetailsService.loadUserByUsername(username);
+                UserDetails userDetails = clientService.loadUserByUsername(username);
                 if (jwtTokenService.verifyToken(jwtToken, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());

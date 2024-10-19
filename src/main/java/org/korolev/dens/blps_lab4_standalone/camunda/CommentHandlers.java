@@ -20,6 +20,24 @@ public class CommentHandlers {
 
     @Bean
     @ExternalTaskSubscription(
+            topicName = "addComment",
+            processDefinitionKey = "interactWithTopic",
+            includeExtensionProperties = true,
+            variableNames = {"jwtToken", "topicId", "text"}
+    )
+    public ExternalTaskHandler addComment() {
+        return new ExternalTaskHandler() {
+            @Async
+            @SneakyThrows
+            @Override
+            public void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
+                commentTaskList.performAddComment(externalTask, externalTaskService);
+            }
+        };
+    }
+
+    @Bean
+    @ExternalTaskSubscription(
             topicName = "deleteComment",
             processDefinitionKey = "moderateForum",
             includeExtensionProperties = true,
@@ -41,7 +59,7 @@ public class CommentHandlers {
             topicName = "getComments",
             processDefinitionKey = "moderateForum",
             includeExtensionProperties = true,
-            variableNames = {"selectedTopic"}
+            variableNames = {"topicId"}
     )
     public ExternalTaskHandler getTopicComments() {
         return new ExternalTaskHandler() {
